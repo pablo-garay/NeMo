@@ -1,9 +1,14 @@
 .. _word_boosting:
 
-*************
+****************************************************
 Word Boosting
-*************
+****************************************************
+
 .. _word_boosting_flashlight:
+
+Flashlight-based Word Boosting
+==============================
+
 
 The Flashlight decoder supports word boosting during CTC decoding using a KenLM binary and corresponding lexicon. Word boosting only works in lexicon-decoding mode and does not function in lexicon-free mode. It allows you to bias the decoder for certain words by manually increasing or decreasing the probability of emitting specific words. This can be very helpful if you have uncommon or industry-specific terms that you want to ensure are transcribed correctly.
 
@@ -40,9 +45,8 @@ You can then pass this file to your Flashlight config object during decoding:
 
 .. _word_boosting_ctcws:
 
-****************************************************
 Context-biasing (Word Boosting) without External LM
-****************************************************
+===================================================
 
 NeMo toolkit supports a fast context-biasing method for CTC and Transducer (RNN-T) ASR models with CTC-based Word Spotter.
 The method involves decoding CTC log probabilities with a context graph built for words and phrases from the context-biasing list.
@@ -116,3 +120,142 @@ The script will run the recognition with all the combinations of the parameters 
             ctc_ali_token_weight=[0.5]
 
 To use Transducer head of the Hybrid Transducer-CTC model, you need to set ``decoder_type=rnnt``.
+
+
+
+.. _word_boosting_gpupb:
+
+GPU-PB (Phrase Boosting)
+========================
+
+GPU-PB is a GPU-accelerated Phrase-Boosting method supported for CTC, RNN-T/TDT, and AED (Canary) models based on NGPU-LM infrastructure.
+The method supports greedy and beam search decoding, including CUDA graphs mode. GPU-PB is compatible with NGPU-LM at the same decoding run.
+
+GPU-PB is applied only at the decoding step in shallow fusion mode. You do not need to retrain the ASR model.
+During greedy or beam search decoding, GPU-PB rescales ASR model scores with a boosting tree at the token level.
+The boosting tree is built from a context phrases list, which is provided by the user.
+
+**NOTE**: for ASR models that support capitalization by default (e.g., Canary or parakeet-tdt-0.6b-v2), you need to capitalize all the key phrases in advance (and capitalize the full word for abbreviations).
+You can use LLM for this task.
+
+More details about GPU-PB method can be found in the `original paper <https://arxiv.org/abs/2508.07014>`__.
+
+Usage
+-----
+You can build the boosting tree for a specific ASR model and use it for all the decoding evaluation or just provide the list of context phrases directly into ``speech_to_text_eval.py``.
+
+**0.0. Build the boosting tree for a specific ASR model:**
+
+.. code-block::
+
+    python scripts/asr_context_biasing/build_gpu_boosting_tree.py \
+            asr_model_path=${ASR_NEMO_MODEL_FILE} \
+            key_phrases_file=${CONTEXT_BIASING_LIST} \
+            save_to=${PATH_TO_SAVE_BTREE} \
+            context_score=${CONTEXT_SCORE} \
+            depth_scaling=${DEPTH_SCALING} \
+            use_triton=True
+
+The use of the Phrase-Boosting tree is controlled by ``boosting_tree`` config (``BoostingTreeModelConfig``) for all the models.
+For prepared boosting tree use ``boosting_tree.model_path=${PATH_TO_BTREE}``.
+We reccomed to provide the list of context phrases directly into ``speech_to_text_eval.py`` by ``boosting_tree.key_phrases_file=${KEY_WORDS_LIST}``.
+
+List of the most important parameters:
+
+*  ``strategy`` - The strategy to use for decoding depending on the model type (greedy_batch, beam_batch, malsd_batch, beam).
+*  ``key_phrases_file`` - The path to the context-biasing list file (one phrase per line).
+*  ``context_score`` - The score for each arc transition in the context graph (1.0 is recommended).
+*  ``depth_scaling`` - The scaling factor for the depth of the context graph (2.0 is recommended).
+*  ``boosting_tree_alpha`` - alpha parameter for the GPU-PB boosting tree during shallow fusion decoding (tune it according to your data).
+
+**1.1. CTC greedy batch decoding:**
+
+.. code-block::
+
+    python examples/asr/speech_to_text_eval.py \
+        model_path=${MODEL_NAME} \
+        dataset_manifest=${EVAL_MANIFEST} \
+        batch_size=${BATCH_SIZE} \
+        output_filename=${OUT_MANIFEST} \
+        ctc_decoding.strategy="greedy_batch" \
+        ctc_decoding.greedy.boosting_tree.key_phrases_file=${KEY_WORDS_LIST} \
+        ctc_decoding.greedy.boosting_tree.context_score=1.0 \
+        ctc_decoding.greedy.boosting_tree.depth_scaling=2.0 \
+        ctc_decoding.greedy.boosting_tree_alpha=${BT_ALPHA} \
+
+
+**1.2. CTC beam batch decoding:**
+
+.. code-block::
+
+    python examples/asr/speech_to_text_eval.py \
+        model_path=${MODEL_NAME} \
+        dataset_manifest=${EVAL_MANIFEST} \
+        batch_size=${BATCH_SIZE} \
+        output_filename=${OUT_MANIFEST} \
+        ctc_decoding.strategy="beam_batch" \
+        ctc_decoding.beam.beam_size=${BEAM_SIZE} \
+        ctc_decoding.beam.boosting_tree.key_phrases_file=${KEY_WORDS_LIST} \
+        ctc_decoding.beam.boosting_tree.context_score=1.0 \
+        ctc_decoding.beam.boosting_tree.depth_scaling=2.0 \
+        ctc_decoding.beam.boosting_tree_alpha=${BT_ALPHA} \
+
+**2.1. RNN-T/TDT greedy batch decoding:**
+
+.. code-block::
+
+    python examples/asr/speech_to_text_eval.py \
+        model_path=${MODEL_NAME} \
+        dataset_manifest=${EVAL_MANIFEST} \
+        batch_size=${BATCH_SIZE} \
+        output_filename=${OUT_MANIFEST} \
+        rnnt_decoding.strategy="greedy_batch" \
+        rnnt_decoding.greedy.boosting_tree.key_phrases_file=${KEY_WORDS_LIST} \
+        rnnt_decoding.greedy.boosting_tree.context_score=1.0 \
+        rnnt_decoding.greedy.boosting_tree.depth_scaling=2.0 \
+        rnnt_decoding.greedy.boosting_tree_alpha=${BT_ALPHA} \
+
+**2.2. RNN-T/TDT beam (malsd_batch) decoding:**
+
+.. code-block::
+
+    python examples/asr/speech_to_text_eval.py \
+        model_path=${MODEL_NAME} \
+        dataset_manifest=${EVAL_MANIFEST} \
+        batch_size=${BATCH_SIZE} \
+        output_filename=${OUT_MANIFEST} \
+        rnnt_decoding.strategy="malsd_batch" \
+        rnnt_decoding.beam.beam_size=${BEAM_SIZE} \
+        rnnt_decoding.beam.boosting_tree.key_phrases_file=${KEY_WORDS_LIST} \
+        rnnt_decoding.beam.boosting_tree.context_score=1.0 \
+        rnnt_decoding.beam.boosting_tree.depth_scaling=2.0 \
+        rnnt_decoding.beam.boosting_tree_alpha=${BT_ALPHA} \
+
+**3.1. AED (Canary) greedy (beam_size=1) or beam (beam_size>1) decoding:**
+
+.. code-block::
+
+    python examples/asr/speech_to_text_eval.py \
+        model_path=${MODEL_NAME} \
+        dataset_manifest=${EVAL_MANIFEST} \
+        batch_size=${BATCH_SIZE} \
+        output_filename=${OUT_MANIFEST} \
+        multitask_decoding.strategy="beam" \
+        multitask_decoding.beam.beam_size=${BEAM_SIZE} \
+        multitask_decoding.beam.boosting_tree.key_phrases_file=${CONTEXT_BIASING_LIST} \
+        multitask_decoding.beam.boosting_tree.context_score=1.0 \
+        multitask_decoding.beam.boosting_tree.depth_scaling=1.0 \
+        multitask_decoding.beam.boosting_tree_alpha=${BT_ALPHA} \
+        gt_lang_attr_name="target_lang" \
+        gt_text_attr_name="text" \
+
+Results evaluation
+------------------
+
+You can compute the F-score for the list of context phrases directly from the decoding manifest.
+
+.. code-block::
+
+    python scripts/asr_context_biasing/compute_key_words_fscore.py \
+            --input_manifest=${DECODING_MANIFEST} \
+            --key_words_file=${CONTEXT_PHRASES_LIST}

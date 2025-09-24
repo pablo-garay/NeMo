@@ -55,9 +55,11 @@ uncommon terms, and custom vocabulary.
 
 - **Flashlight-based Word Boosting**: Word-boosting method for CTC models with external n-gram LM.
 
-- **CTC-WS (Context-biasing) Word Boosting**: Word-boosting method for hybrid models without LM.
+- **CTC-WS (Context-biasing) Word Boosting**: Word-boosting method for hybrid (Transducer-CTC) models without LM.
 
-For details, please refer to: :ref:`word_boosting`
+- **GPU-PB**: GPU-accelerated phrase-boosting for CTC, RNN-T/TDT, and AED (Canary) models supporting greedy and beam search decoding.
+
+For details, please refer to: :ref:`word_boosting`.
 
 
 LM Training
