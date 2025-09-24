@@ -23,7 +23,7 @@ More details about GPU-PB method can be found in the `original paper <https://ar
 
 Usage
 -----
-We support tree ways to pass the context phrases into the decoding script:
+We support three ways to pass the context phrases into the decoding script:
 
 1. Build a boosting tree for a specific ASR model (step 0.0) and use it for all the decoding evaluation by ``boosting_tree.model_path`` (step 1.1-3.1).
 2. Provide a file with context phrases ``boosting_tree.key_phrases_file`` - one phrase per line  (step 1.1-3.1).
@@ -31,7 +31,7 @@ We support tree ways to pass the context phrases into the decoding script:
 
 The use of the Phrase-Boosting tree is controlled by ``boosting_tree`` config (``BoostingTreeModelConfig``) for all the models.
 For prepared boosting tree use ``boosting_tree.model_path=${PATH_TO_BTREE}``.
-We reccomed to provide the list of context phrases directly into ``speech_to_text_eval.py`` by ``boosting_tree.key_phrases_file=${KEY_WORDS_LIST}``.
+We recommend to provide the list of context phrases directly into ``speech_to_text_eval.py`` by ``boosting_tree.key_phrases_file=${KEY_WORDS_LIST}``.
 
 List of the most important parameters:
 
@@ -39,7 +39,7 @@ List of the most important parameters:
 *  ``model_path``, ``key_phrases_file``, ``key_phrases_list`` - The way to pass the context phrases into the decoding script.
 *  ``context_score`` - The score for each arc transition in the context graph (1.0 is recommended).
 *  ``depth_scaling`` - The scaling factor for the depth of the context graph (2.0 is recommended).
-*  ``boosting_tree_alpha`` - Weigth of the GPU-PB boosting tree during shallow fusion decoding (tune it according to your data).
+*  ``boosting_tree_alpha`` - Weight of the GPU-PB boosting tree during shallow fusion decoding (tune it according to your data).
 
 **0.0. [Optional] Build the boosting tree for a specific ASR model:**
 
@@ -192,7 +192,7 @@ CTC-WS: Context-biasing (Word Boosting) without External LM
 
 NeMo toolkit supports a fast context-biasing method for CTC and Transducer (RNN-T) ASR models with CTC-based Word Spotter.
 The method involves decoding CTC log probabilities with a context graph built for words and phrases from the context-biasing list.
-The spotted context-biasing candidates (with their scores and time intervals) are compared by scores with words from the greedy CTC decoding results to improve recognition accuracy and pretend false accepts of context-biasing.
+The spotted context-biasing candidates (with their scores and time intervals) are compared by scores with words from the greedy CTC decoding results to improve recognition accuracy and prevent false accepts of context-biasing.
 
 A Hybrid Transducer-CTC model (a shared encoder trained together with CTC and Transducer output heads) enables the use of the CTC-WS method for the Transducer model.
 Context-biasing candidates obtained by CTC-WS are also filtered by the scores with greedy CTC predictions and then merged with greedy Transducer results.
