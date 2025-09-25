@@ -38,7 +38,7 @@ List of the most important parameters:
 *  ``strategy`` - The strategy to use for decoding depending on the model type (CTC - greedy_batch or beam_batch; RNN-T/TDT - greedy_batch or malsd_batch; AED - beam).
 *  ``model_path``, ``key_phrases_file``, ``key_phrases_list`` - The way to pass the context phrases into the decoding script.
 *  ``context_score`` - The score for each arc transition in the context graph (1.0 is recommended).
-*  ``depth_scaling`` - The scaling factor for the depth of the context graph (2.0 is recommended).
+*  ``depth_scaling`` - The scaling factor for the depth of the context graph (2.0 is recommended for CTC, RNN-T and TDT, 1.0 for Canary).
 *  ``boosting_tree_alpha`` - Weight of the GPU-PB boosting tree during shallow fusion decoding (tune it according to your data).
 
 **0.0. [Optional] Build the boosting tree for a specific ASR model:**
